@@ -2,35 +2,15 @@
 
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
+var util = require('shared/util');
 var Vue = _interopDefault(require('vue'));
-var vueTemplateCompiler = require('vue-template-compiler');
-
-// 
-
-function throwError (msg) {
-  throw new Error(("[vue-test-utils]: " + msg))
-}
-
-function warn (msg) {
-  console.error(("[vue-test-utils]: " + msg));
-}
-
-var camelizeRE = /-(\w)/g;
-var camelize = function (str) { return str.replace(camelizeRE, function (_, c) { return c ? c.toUpperCase() : ''; }); };
-
-/**
- * Capitalize a string.
- */
-var capitalize = function (str) { return str.charAt(0).toUpperCase() + str.slice(1); };
-
-/**
- * Hyphenate a camelCase string.
- */
-var hyphenateRE = /\B([A-Z])/g;
-var hyphenate = function (str) { return str.replace(hyphenateRE, '-$1').toLowerCase(); };
+var validators = require('shared/validators');
+var createInstance = _interopDefault(require('create-instance'));
+var mergeOptions = require('shared/merge-options');
+var stubComponents = require('shared/stub-components');
 
 if (typeof window === 'undefined') {
-  throwError(
+  util.throwError(
     'window is undefined, vue-test-utils needs to be run in a browser environment.\n' +
     'You can run the tests in node using jsdom + jsdom-global.\n' +
     'See https://vue-test-utils.vuejs.org/en/guides/common-tips.html for more details.'
@@ -77,95 +57,6 @@ if (typeof Object.assign !== 'function') {
   })();
 }
 
-// 
-
-function isDomSelector (selector) {
-  if (typeof selector !== 'string') {
-    return false
-  }
-
-  try {
-    if (typeof document === 'undefined') {
-      throwError('mount must be run in a browser environment like PhantomJS, jsdom or chrome');
-    }
-  } catch (error) {
-    throwError('mount must be run in a browser environment like PhantomJS, jsdom or chrome');
-  }
-
-  try {
-    document.querySelector(selector);
-    return true
-  } catch (error) {
-    return false
-  }
-}
-
-function isVueComponent (component) {
-  if (typeof component === 'function' && component.options) {
-    return true
-  }
-
-  if (component === null) {
-    return false
-  }
-
-  if (typeof component !== 'object') {
-    return false
-  }
-
-  if (component.extends) {
-    return true
-  }
-
-  if (component._Ctor) {
-    return true
-  }
-
-  return typeof component.render === 'function'
-}
-
-function componentNeedsCompiling (component) {
-  return component &&
-    !component.render &&
-    (component.template || component.extends) &&
-    !component.functional
-}
-
-function isRefSelector (refOptionsObject) {
-  if (typeof refOptionsObject !== 'object') {
-    return false
-  }
-
-  if (refOptionsObject === null) {
-    return false
-  }
-
-  var validFindKeys = ['ref'];
-  var keys = Object.keys(refOptionsObject);
-  if (!keys.length) {
-    return false
-  }
-
-  var isValid = Object.keys(refOptionsObject).every(function (key) {
-    return validFindKeys.includes(key) &&
-      typeof refOptionsObject[key] === 'string'
-  });
-
-  return isValid
-}
-
-function isNameSelector (nameOptionsObject) {
-  if (typeof nameOptionsObject !== 'object') {
-    return false
-  }
-
-  if (nameOptionsObject === null) {
-    return false
-  }
-
-  return !!nameOptionsObject.name
-}
-
 var NAME_SELECTOR = 'NAME_SELECTOR';
 var COMPONENT_SELECTOR = 'COMPONENT_SELECTOR';
 var REF_SELECTOR = 'REF_SELECTOR';
@@ -176,19 +67,19 @@ var FUNCTIONAL_OPTIONS = VUE_VERSION >= 2.5 ? 'fnOptions' : 'functionalOptions';
 // 
 
 function getSelectorType (selector) {
-  if (isDomSelector(selector)) {
+  if (validators.isDomSelector(selector)) {
     return DOM_SELECTOR
   }
 
-  if (isNameSelector(selector)) {
+  if (validators.isNameSelector(selector)) {
     return NAME_SELECTOR
   }
 
-  if (isVueComponent(selector)) {
+  if (validators.isVueComponent(selector)) {
     return COMPONENT_SELECTOR
   }
 
-  if (isRefSelector(selector)) {
+  if (validators.isRefSelector(selector)) {
     return REF_SELECTOR
   }
 }
@@ -196,7 +87,7 @@ function getSelectorType (selector) {
 function getSelectorTypeOrThrow (selector, methodName) {
   var selectorType = getSelectorType(selector);
   if (!selectorType) {
-    throwError(("wrapper." + methodName + "() must be passed a valid CSS selector, Vue constructor, or valid find option object"));
+    util.throwError(("wrapper." + methodName + "() must be passed a valid CSS selector, Vue constructor, or valid find option object"));
   }
   return selectorType
 }
@@ -273,7 +164,7 @@ function vmCtorMatchesSelector (component, selector) {
 
 function vmFunctionalCtorMatchesSelector (component, Ctor) {
   if (VUE_VERSION < 2.3) {
-    throwError('find for functional components is not support in Vue < 2.3');
+    util.throwError('find for functional components is not support in Vue < 2.3');
   }
 
   if (!Ctor) {
@@ -321,7 +212,7 @@ var WrapperArray = function WrapperArray (wrappers) {
 
 WrapperArray.prototype.at = function at (index) {
   if (index > this.length - 1) {
-    throwError(("no item exists at " + index));
+    util.throwError(("no item exists at " + index));
   }
   return this.wrappers[index]
 };
@@ -329,13 +220,13 @@ WrapperArray.prototype.at = function at (index) {
 WrapperArray.prototype.attributes = function attributes () {
   this.throwErrorIfWrappersIsEmpty('attributes');
 
-  throwError('attributes must be called on a single wrapper, use at(i) to access a wrapper');
+  util.throwError('attributes must be called on a single wrapper, use at(i) to access a wrapper');
 };
 
 WrapperArray.prototype.classes = function classes () {
   this.throwErrorIfWrappersIsEmpty('classes');
 
-  throwError('classes must be called on a single wrapper, use at(i) to access a wrapper');
+  util.throwError('classes must be called on a single wrapper, use at(i) to access a wrapper');
 };
 
 WrapperArray.prototype.contains = function contains (selector) {
@@ -361,13 +252,13 @@ WrapperArray.prototype.visible = function visible () {
 WrapperArray.prototype.emitted = function emitted () {
   this.throwErrorIfWrappersIsEmpty('emitted');
 
-  throwError('emitted must be called on a single wrapper, use at(i) to access a wrapper');
+  util.throwError('emitted must be called on a single wrapper, use at(i) to access a wrapper');
 };
 
 WrapperArray.prototype.emittedByOrder = function emittedByOrder () {
   this.throwErrorIfWrappersIsEmpty('emittedByOrder');
 
-  throwError('emittedByOrder must be called on a single wrapper, use at(i) to access a wrapper');
+  util.throwError('emittedByOrder must be called on a single wrapper, use at(i) to access a wrapper');
 };
 
 WrapperArray.prototype.hasAttribute = function hasAttribute (attribute, value) {
@@ -397,19 +288,19 @@ WrapperArray.prototype.hasStyle = function hasStyle (style, value) {
 WrapperArray.prototype.findAll = function findAll () {
   this.throwErrorIfWrappersIsEmpty('findAll');
 
-  throwError('findAll must be called on a single wrapper, use at(i) to access a wrapper');
+  util.throwError('findAll must be called on a single wrapper, use at(i) to access a wrapper');
 };
 
 WrapperArray.prototype.find = function find () {
   this.throwErrorIfWrappersIsEmpty('find');
 
-  throwError('find must be called on a single wrapper, use at(i) to access a wrapper');
+  util.throwError('find must be called on a single wrapper, use at(i) to access a wrapper');
 };
 
 WrapperArray.prototype.html = function html () {
   this.throwErrorIfWrappersIsEmpty('html');
 
-  throwError('html must be called on a single wrapper, use at(i) to access a wrapper');
+  util.throwError('html must be called on a single wrapper, use at(i) to access a wrapper');
 };
 
 WrapperArray.prototype.is = function is (selector) {
@@ -439,24 +330,24 @@ WrapperArray.prototype.isVueInstance = function isVueInstance () {
 WrapperArray.prototype.name = function name () {
   this.throwErrorIfWrappersIsEmpty('name');
 
-  throwError('name must be called on a single wrapper, use at(i) to access a wrapper');
+  util.throwError('name must be called on a single wrapper, use at(i) to access a wrapper');
 };
 
 WrapperArray.prototype.props = function props () {
   this.throwErrorIfWrappersIsEmpty('props');
 
-  throwError('props must be called on a single wrapper, use at(i) to access a wrapper');
+  util.throwError('props must be called on a single wrapper, use at(i) to access a wrapper');
 };
 
 WrapperArray.prototype.text = function text () {
   this.throwErrorIfWrappersIsEmpty('text');
 
-  throwError('text must be called on a single wrapper, use at(i) to access a wrapper');
+  util.throwError('text must be called on a single wrapper, use at(i) to access a wrapper');
 };
 
 WrapperArray.prototype.throwErrorIfWrappersIsEmpty = function throwErrorIfWrappersIsEmpty (method) {
   if (this.wrappers.length === 0) {
-    throwError((method + " cannot be called on 0 items"));
+    util.throwError((method + " cannot be called on 0 items"));
   }
 };
 
@@ -492,7 +383,7 @@ WrapperArray.prototype.trigger = function trigger (event, options) {
 
 WrapperArray.prototype.update = function update () {
   this.throwErrorIfWrappersIsEmpty('update');
-  warn('update has been removed. All changes are now synchrnous without calling update');
+  util.warn('update has been removed. All changes are now synchrnous without calling update');
 };
 
 WrapperArray.prototype.destroy = function destroy () {
@@ -508,27 +399,27 @@ var ErrorWrapper = function ErrorWrapper (selector) {
 };
 
 ErrorWrapper.prototype.at = function at () {
-  throwError(("find did not return " + (this.selector) + ", cannot call at() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call at() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.attributes = function attributes () {
-  throwError(("find did not return " + (this.selector) + ", cannot call attributes() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call attributes() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.classes = function classes () {
-  throwError(("find did not return " + (this.selector) + ", cannot call classes() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call classes() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.contains = function contains () {
-  throwError(("find did not return " + (this.selector) + ", cannot call contains() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call contains() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.emitted = function emitted () {
-  throwError(("find did not return " + (this.selector) + ", cannot call emitted() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call emitted() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.emittedByOrder = function emittedByOrder () {
-  throwError(("find did not return " + (this.selector) + ", cannot call emittedByOrder() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call emittedByOrder() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.exists = function exists () {
@@ -536,95 +427,95 @@ ErrorWrapper.prototype.exists = function exists () {
 };
 
 ErrorWrapper.prototype.filter = function filter () {
-  throwError(("find did not return " + (this.selector) + ", cannot call filter() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call filter() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.visible = function visible () {
-  throwError(("find did not return " + (this.selector) + ", cannot call visible() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call visible() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.hasAttribute = function hasAttribute () {
-  throwError(("find did not return " + (this.selector) + ", cannot call hasAttribute() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call hasAttribute() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.hasClass = function hasClass () {
-  throwError(("find did not return " + (this.selector) + ", cannot call hasClass() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call hasClass() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.hasProp = function hasProp () {
-  throwError(("find did not return " + (this.selector) + ", cannot call hasProp() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call hasProp() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.hasStyle = function hasStyle () {
-  throwError(("find did not return " + (this.selector) + ", cannot call hasStyle() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call hasStyle() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.findAll = function findAll () {
-  throwError(("find did not return " + (this.selector) + ", cannot call findAll() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call findAll() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.find = function find () {
-  throwError(("find did not return " + (this.selector) + ", cannot call find() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call find() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.html = function html () {
-  throwError(("find did not return " + (this.selector) + ", cannot call html() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call html() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.is = function is () {
-  throwError(("find did not return " + (this.selector) + ", cannot call is() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call is() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.isEmpty = function isEmpty () {
-  throwError(("find did not return " + (this.selector) + ", cannot call isEmpty() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call isEmpty() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.isVisible = function isVisible () {
-  throwError(("find did not return " + (this.selector) + ", cannot call isVisible() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call isVisible() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.isVueInstance = function isVueInstance () {
-  throwError(("find did not return " + (this.selector) + ", cannot call isVueInstance() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call isVueInstance() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.name = function name () {
-  throwError(("find did not return " + (this.selector) + ", cannot call name() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call name() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.props = function props () {
-  throwError(("find did not return " + (this.selector) + ", cannot call props() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call props() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.text = function text () {
-  throwError(("find did not return " + (this.selector) + ", cannot call text() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call text() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.setComputed = function setComputed () {
-  throwError(("find did not return " + (this.selector) + ", cannot call setComputed() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call setComputed() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.setData = function setData () {
-  throwError(("find did not return " + (this.selector) + ", cannot call setData() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call setData() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.setMethods = function setMethods () {
-  throwError(("find did not return " + (this.selector) + ", cannot call setMethods() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call setMethods() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.setProps = function setProps () {
-  throwError(("find did not return " + (this.selector) + ", cannot call setProps() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call setProps() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.trigger = function trigger () {
-  throwError(("find did not return " + (this.selector) + ", cannot call trigger() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call trigger() on empty Wrapper"));
 };
 
 ErrorWrapper.prototype.update = function update () {
-  throwError("update has been removed from vue-test-utils. All updates are now synchronous by default");
+  util.throwError("update has been removed from vue-test-utils. All updates are now synchronous by default");
 };
 
 ErrorWrapper.prototype.destroy = function destroy () {
-  throwError(("find did not return " + (this.selector) + ", cannot call destroy() on empty Wrapper"));
+  util.throwError(("find did not return " + (this.selector) + ", cannot call destroy() on empty Wrapper"));
 };
 
 // 
@@ -689,7 +580,7 @@ function findVnodes (
 ) {
   if (selectorType === REF_SELECTOR) {
     if (!vm) {
-      throwError('$ref selectors can only be used on Vue component wrappers');
+      util.throwError('$ref selectors can only be used on Vue component wrappers');
     }
     // $FlowIgnore
     return findVNodesByRef(vnode, selector.ref)
@@ -727,7 +618,7 @@ function find (
   var selectorType = getSelectorTypeOrThrow(selector, 'find');
 
   if (!vnode && !vm && selectorType !== DOM_SELECTOR) {
-    throwError('cannot find a Vue instance on a DOM node. The node you are calling find on does not exist in the VDom. Are you adding the node as innerHTML?');
+    util.throwError('cannot find a Vue instance on a DOM node. The node you are calling find on does not exist in the VDom. Are you adding the node as innerHTML?');
   }
 
   if (selectorType === COMPONENT_SELECTOR || selectorType === NAME_SELECTOR) {
@@ -764,6 +655,40 @@ function createWrapper (
     : new Wrapper(node, options)
 }
 
+var i = 0;
+
+function orderDeps (watcher) {
+  watcher.deps.forEach(function (dep) {
+    if (dep._sortedId === i) {
+      return
+    }
+    dep._sortedId = i;
+    dep.subs.forEach(orderDeps);
+    dep.subs = dep.subs.sort(function (a, b) { return a.id - b.id; });
+  });
+}
+
+function orderVmWatchers (vm) {
+  if (vm._watchers) {
+    vm._watchers.forEach(orderDeps);
+  }
+
+  if (vm._computedWatchers) {
+    Object.keys(vm._computedWatchers).forEach(function (computedWatcher) {
+      orderDeps(vm._computedWatchers[computedWatcher]);
+    });
+  }
+
+  orderDeps(vm._watcher);
+
+  vm.$children.forEach(orderVmWatchers);
+}
+
+function orderWatchers (vm) {
+  orderVmWatchers(vm);
+  i++;
+}
+
 // 
 
 var Wrapper = function Wrapper (node, options) {
@@ -782,7 +707,7 @@ var Wrapper = function Wrapper (node, options) {
 };
 
 Wrapper.prototype.at = function at () {
-  throwError('at() must be called on a WrapperArray');
+  util.throwError('at() must be called on a WrapperArray');
 };
 
 /**
@@ -839,7 +764,7 @@ Wrapper.prototype.contains = function contains (selector) {
  */
 Wrapper.prototype.emitted = function emitted (event) {
   if (!this._emitted && !this.vm) {
-    throwError('wrapper.emitted() can only be called on a Vue instance');
+    util.throwError('wrapper.emitted() can only be called on a Vue instance');
   }
   if (event) {
     return this._emitted[event]
@@ -852,7 +777,7 @@ Wrapper.prototype.emitted = function emitted (event) {
  */
 Wrapper.prototype.emittedByOrder = function emittedByOrder () {
   if (!this._emittedByOrder && !this.vm) {
-    throwError('wrapper.emittedByOrder() can only be called on a Vue instance');
+    util.throwError('wrapper.emittedByOrder() can only be called on a Vue instance');
   }
   return this._emittedByOrder
 };
@@ -868,14 +793,14 @@ Wrapper.prototype.exists = function exists () {
 };
 
 Wrapper.prototype.filter = function filter () {
-  throwError('filter() must be called on a WrapperArray');
+  util.throwError('filter() must be called on a WrapperArray');
 };
 
 /**
  * Utility to check wrapper is visible. Returns false if a parent element has display: none or visibility: hidden style.
  */
 Wrapper.prototype.visible = function visible () {
-  warn('visible has been deprecated and will be removed in version 1, use isVisible instead');
+  util.warn('visible has been deprecated and will be removed in version 1, use isVisible instead');
 
   var element = this.element;
 
@@ -897,14 +822,14 @@ Wrapper.prototype.visible = function visible () {
  * Checks if wrapper has an attribute with matching value
  */
 Wrapper.prototype.hasAttribute = function hasAttribute (attribute, value) {
-  warn('hasAttribute() has been deprecated and will be removed in version 1.0.0. Use attributes() instead—https://vue-test-utils.vuejs.org/en/api/wrapper/attributes');
+  util.warn('hasAttribute() has been deprecated and will be removed in version 1.0.0. Use attributes() instead—https://vue-test-utils.vuejs.org/en/api/wrapper/attributes');
 
   if (typeof attribute !== 'string') {
-    throwError('wrapper.hasAttribute() must be passed attribute as a string');
+    util.throwError('wrapper.hasAttribute() must be passed attribute as a string');
   }
 
   if (typeof value !== 'string') {
-    throwError('wrapper.hasAttribute() must be passed value as a string');
+    util.throwError('wrapper.hasAttribute() must be passed value as a string');
   }
 
   return !!(this.element && this.element.getAttribute(attribute) === value)
@@ -916,11 +841,11 @@ Wrapper.prototype.hasAttribute = function hasAttribute (attribute, value) {
 Wrapper.prototype.hasClass = function hasClass (className) {
     var this$1 = this;
 
-  warn('hasClass() has been deprecated and will be removed in version 1.0.0. Use classes() instead—https://vue-test-utils.vuejs.org/en/api/wrapper/classes');
+  util.warn('hasClass() has been deprecated and will be removed in version 1.0.0. Use classes() instead—https://vue-test-utils.vuejs.org/en/api/wrapper/classes');
   var targetClass = className;
 
   if (typeof targetClass !== 'string') {
-    throwError('wrapper.hasClass() must be passed a string');
+    util.throwError('wrapper.hasClass() must be passed a string');
   }
 
   // if $style is available and has a matching target, use that instead.
@@ -939,13 +864,13 @@ Wrapper.prototype.hasClass = function hasClass (className) {
  * Asserts wrapper has a prop name
  */
 Wrapper.prototype.hasProp = function hasProp (prop, value) {
-  warn('hasProp() has been deprecated and will be removed in version 1.0.0. Use props() instead—https://vue-test-utils.vuejs.org/en/api/wrapper/props');
+  util.warn('hasProp() has been deprecated and will be removed in version 1.0.0. Use props() instead—https://vue-test-utils.vuejs.org/en/api/wrapper/props');
 
   if (!this.isVueComponent) {
-    throwError('wrapper.hasProp() must be called on a Vue instance');
+    util.throwError('wrapper.hasProp() must be called on a Vue instance');
   }
   if (typeof prop !== 'string') {
-    throwError('wrapper.hasProp() must be passed prop as a string');
+    util.throwError('wrapper.hasProp() must be passed prop as a string');
   }
 
   // $props object does not exist in Vue 2.1.x, so use $options.propsData instead
@@ -960,14 +885,14 @@ Wrapper.prototype.hasProp = function hasProp (prop, value) {
  * Checks if wrapper has a style with value
  */
 Wrapper.prototype.hasStyle = function hasStyle (style, value) {
-  warn('hasStyle() has been deprecated and will be removed in version 1.0.0. Use wrapper.element.style instead');
+  util.warn('hasStyle() has been deprecated and will be removed in version 1.0.0. Use wrapper.element.style instead');
 
   if (typeof style !== 'string') {
-    throwError('wrapper.hasStyle() must be passed style as a string');
+    util.throwError('wrapper.hasStyle() must be passed style as a string');
   }
 
   if (typeof value !== 'string') {
-    throwError('wrapper.hasClass() must be passed value as string');
+    util.throwError('wrapper.hasClass() must be passed value as string');
   }
 
   /* istanbul ignore next */
@@ -1053,7 +978,7 @@ Wrapper.prototype.is = function is (selector) {
   }
 
   if (selectorType === REF_SELECTOR) {
-    throwError('$ref selectors can not be used with wrapper.is()');
+    util.throwError('$ref selectors can not be used with wrapper.is()');
   }
 
   if (typeof selector === 'object') {
@@ -1125,10 +1050,10 @@ Wrapper.prototype.name = function name () {
  */
 Wrapper.prototype.props = function props () {
   if (this.isFunctionalComponent) {
-    throwError('wrapper.props() cannot be called on a mounted functional component.');
+    util.throwError('wrapper.props() cannot be called on a mounted functional component.');
   }
   if (!this.vm) {
-    throwError('wrapper.props() must be called on a Vue instance');
+    util.throwError('wrapper.props() must be called on a Vue instance');
   }
   // $props object does not exist in Vue 2.1.x, so use $options.propsData instead
   var _props;
@@ -1148,11 +1073,11 @@ Wrapper.prototype.setData = function setData (data) {
     var this$1 = this;
 
   if (this.isFunctionalComponent) {
-    throwError('wrapper.setData() canot be called on a functional component');
+    util.throwError('wrapper.setData() canot be called on a functional component');
   }
 
   if (!this.vm) {
-    throwError('wrapper.setData() can only be called on a Vue instance');
+    util.throwError('wrapper.setData() can only be called on a Vue instance');
   }
 
   Object.keys(data).forEach(function (key) {
@@ -1168,16 +1093,16 @@ Wrapper.prototype.setComputed = function setComputed (computed) {
     var this$1 = this;
 
   if (!this.isVueComponent) {
-    throwError('wrapper.setComputed() can only be called on a Vue instance');
+    util.throwError('wrapper.setComputed() can only be called on a Vue instance');
   }
 
-  warn('setComputed() has been deprecated and will be removed in version 1.0.0. You can overwrite computed properties by passing a computed object in the mounting options');
+  util.warn('setComputed() has been deprecated and will be removed in version 1.0.0. You can overwrite computed properties by passing a computed object in the mounting options');
 
   Object.keys(computed).forEach(function (key) {
     if (this$1.version > 2.1) {
       // $FlowIgnore : Problem with possibly null this.vm
       if (!this$1.vm._computedWatchers[key]) {
-        throwError(("wrapper.setComputed() was passed a value that does not exist as a computed property on the Vue instance. Property " + key + " does not exist on the Vue instance"));
+        util.throwError(("wrapper.setComputed() was passed a value that does not exist as a computed property on the Vue instance. Property " + key + " does not exist on the Vue instance"));
       }
       // $FlowIgnore : Problem with possibly null this.vm
       this$1.vm._computedWatchers[key].value = computed[key];
@@ -1196,7 +1121,7 @@ Wrapper.prototype.setComputed = function setComputed (computed) {
 
       // $FlowIgnore : Problem with possibly null this.vm
       if (!isStore && !this$1.vm._watchers.some(function (w) { return w.getter.name === key; })) {
-        throwError(("wrapper.setComputed() was passed a value that does not exist as a computed property on the Vue instance. Property " + key + " does not exist on the Vue instance"));
+        util.throwError(("wrapper.setComputed() was passed a value that does not exist as a computed property on the Vue instance. Property " + key + " does not exist on the Vue instance"));
       }
       // $FlowIgnore : Problem with possibly null this.vm
       this$1.vm._watchers.forEach(function (watcher) {
@@ -1220,7 +1145,7 @@ Wrapper.prototype.setMethods = function setMethods (methods) {
     var this$1 = this;
 
   if (!this.isVueComponent) {
-    throwError('wrapper.setMethods() can only be called on a Vue instance');
+    util.throwError('wrapper.setMethods() can only be called on a Vue instance');
   }
   Object.keys(methods).forEach(function (key) {
     // $FlowIgnore : Problem with possibly null this.vm
@@ -1237,10 +1162,10 @@ Wrapper.prototype.setProps = function setProps (data) {
     var this$1 = this;
 
   if (this.isFunctionalComponent) {
-    throwError('wrapper.setProps() canot be called on a functional component');
+    util.throwError('wrapper.setProps() canot be called on a functional component');
   }
   if (!this.isVueComponent || !this.vm) {
-    throwError('wrapper.setProps() can only be called on a Vue instance');
+    util.throwError('wrapper.setProps() can only be called on a Vue instance');
   }
   if (this.vm && this.vm.$options && !this.vm.$options.propsData) {
     this.vm.$options.propsData = {};
@@ -1249,7 +1174,7 @@ Wrapper.prototype.setProps = function setProps (data) {
     // Ignore properties that were not specified in the component options
     // $FlowIgnore : Problem with possibly null this.vm
     if (!this$1.vm.$options._propKeys || !this$1.vm.$options._propKeys.includes(key)) {
-      throwError(("wrapper.setProps() called with " + key + " property which is not defined on component"));
+      util.throwError(("wrapper.setProps() called with " + key + " property which is not defined on component"));
     }
 
     // $FlowIgnore : Problem with possibly null this.vm
@@ -1276,7 +1201,7 @@ Wrapper.prototype.setProps = function setProps (data) {
  */
 Wrapper.prototype.text = function text () {
   if (!this.element) {
-    throwError('cannot call wrapper.text() on a wrapper without an element');
+    util.throwError('cannot call wrapper.text() on a wrapper without an element');
   }
 
   return this.element.textContent.trim()
@@ -1287,7 +1212,7 @@ Wrapper.prototype.text = function text () {
  */
 Wrapper.prototype.destroy = function destroy () {
   if (!this.isVueComponent) {
-    throwError('wrapper.destroy() can only be called on a Vue instance');
+    util.throwError('wrapper.destroy() can only be called on a Vue instance');
   }
 
   if (this.element.parentNode) {
@@ -1304,15 +1229,15 @@ Wrapper.prototype.trigger = function trigger (type, options) {
     if ( options === void 0 ) options = {};
 
   if (typeof type !== 'string') {
-    throwError('wrapper.trigger() must be passed a string');
+    util.throwError('wrapper.trigger() must be passed a string');
   }
 
   if (!this.element) {
-    throwError('cannot call wrapper.trigger() on a wrapper without an element');
+    util.throwError('cannot call wrapper.trigger() on a wrapper without an element');
   }
 
   if (options.target) {
-    throwError('you cannot set the target value of an event. See the notes section of the docs for more details—https://vue-test-utils.vuejs.org/en/api/wrapper/trigger.html');
+    util.throwError('you cannot set the target value of an event. See the notes section of the docs for more details—https://vue-test-utils.vuejs.org/en/api/wrapper/trigger.html');
   }
 
   // Don't fire event on a disabled element
@@ -1366,10 +1291,13 @@ Wrapper.prototype.trigger = function trigger (type, options) {
   }
 
   this.element.dispatchEvent(eventObject);
+  if (this.vnode) {
+    orderWatchers(this.vm || this.vnode.context.$root);
+  }
 };
 
 Wrapper.prototype.update = function update () {
-  warn('update has been removed from vue-test-utils. All updates are now synchronous by default');
+  util.warn('update has been removed from vue-test-utils. All updates are now synchronous by default');
 };
 
 function setDepsSync (dep) {
@@ -1419,6 +1347,7 @@ var VueWrapper = (function (Wrapper$$1) {
     this.vm = vm;
     if (options.sync) {
       setWatchersToSync(vm);
+      orderWatchers(vm);
     }
     this.isVueComponent = true;
     this.isFunctionalComponent = vm.$options._isFunctionalContainer;
@@ -1435,410 +1364,14 @@ var VueWrapper = (function (Wrapper$$1) {
 
 // 
 
-function isValidSlot (slot) {
-  return true
-}
+function createElement () {
+  if (document) {
+    var elem = document.createElement('div');
 
-function addSlotToVm (vm, slotName, slotValue) {
-  var elem;
-  if (typeof slotValue === 'string') {
-    if (!vueTemplateCompiler.compileToFunctions) {
-      throwError('vueTemplateCompiler is undefined, you must pass components explicitly if vue-template-compiler is undefined');
+    if (document.body) {
+      document.body.appendChild(elem);
     }
-    if (window.navigator.userAgent.match(/PhantomJS/i)) {
-      throwError('option.slots does not support strings in PhantomJS. Please use Puppeteer, or pass a component');
-    }
-    var domParser = new window.DOMParser();
-    var document = domParser.parseFromString(slotValue, 'text/html');
-    var _slotValue = slotValue.trim();
-    if (_slotValue[0] === '<' && _slotValue[_slotValue.length - 1] === '>' && document.body.childElementCount === 1) {
-      elem = vm.$createElement(vueTemplateCompiler.compileToFunctions(slotValue));
-    } else {
-      var compiledResult = vueTemplateCompiler.compileToFunctions(("<div>" + slotValue + "{{ }}</div>"));
-      var _staticRenderFns = vm._renderProxy.$options.staticRenderFns;
-      vm._renderProxy.$options.staticRenderFns = compiledResult.staticRenderFns;
-      elem = compiledResult.render.call(vm._renderProxy, vm.$createElement).children;
-      vm._renderProxy.$options.staticRenderFns = _staticRenderFns;
-    }
-  } else {
-    elem = vm.$createElement(slotValue);
-  }
-  if (Array.isArray(elem)) {
-    if (Array.isArray(vm.$slots[slotName])) {
-      vm.$slots[slotName] = vm.$slots[slotName].concat( elem);
-    } else {
-      vm.$slots[slotName] = [].concat( elem );
-    }
-  } else {
-    if (Array.isArray(vm.$slots[slotName])) {
-      vm.$slots[slotName].push(elem);
-    } else {
-      vm.$slots[slotName] = [elem];
-    }
-  }
-}
-
-function addSlots (vm, slots) {
-  Object.keys(slots).forEach(function (key) {
-    if (!isValidSlot(slots[key])) {
-      throwError('slots[key] must be a Component, string or an array of Components');
-    }
-
-    if (Array.isArray(slots[key])) {
-      slots[key].forEach(function (slotValue) {
-        if (!isValidSlot(slotValue)) {
-          throwError('slots[key] must be a Component, string or an array of Components');
-        }
-        addSlotToVm(vm, key, slotValue);
-      });
-    } else {
-      addSlotToVm(vm, key, slots[key]);
-    }
-  });
-}
-
-// 
-
-function addMocks (mockedProperties, Vue$$1) {
-  Object.keys(mockedProperties).forEach(function (key) {
-    try {
-      Vue$$1.prototype[key] = mockedProperties[key];
-    } catch (e) {
-      warn(("could not overwrite property " + key + ", this usually caused by a plugin that has added the property as a read-only value"));
-    }
-    Vue.util.defineReactive(Vue$$1, key, mockedProperties[key]);
-  });
-}
-
-function addAttrs (vm, attrs) {
-  var originalSilent = Vue.config.silent;
-  Vue.config.silent = true;
-  if (attrs) {
-    vm.$attrs = attrs;
-  } else {
-    vm.$attrs = {};
-  }
-  Vue.config.silent = originalSilent;
-}
-
-function addListeners (vm, listeners) {
-  var originalSilent = Vue.config.silent;
-  Vue.config.silent = true;
-  if (listeners) {
-    vm.$listeners = listeners;
-  } else {
-    vm.$listeners = {};
-  }
-  Vue.config.silent = originalSilent;
-}
-
-function addProvide (component, optionProvide, options) {
-  var provide = typeof optionProvide === 'function'
-    ? optionProvide
-    : Object.assign({}, optionProvide);
-
-  options.beforeCreate = function vueTestUtilBeforeCreate () {
-    this._provided = typeof provide === 'function'
-      ? provide.call(this)
-      : provide;
-  };
-}
-
-// 
-
-function logEvents (vm, emitted, emittedByOrder) {
-  var emit = vm.$emit;
-  vm.$emit = function (name) {
-    var args = [], len = arguments.length - 1;
-    while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
-
-    (emitted[name] || (emitted[name] = [])).push(args);
-    emittedByOrder.push({ name: name, args: args });
-    return emit.call.apply(emit, [ vm, name ].concat( args ))
-  };
-}
-
-function addEventLogger (vue) {
-  vue.mixin({
-    beforeCreate: function () {
-      this.__emitted = Object.create(null);
-      this.__emittedByOrder = [];
-      logEvents(this, this.__emitted, this.__emittedByOrder);
-    }
-  });
-}
-
-// 
-
-function compileTemplate (component) {
-  if (component.components) {
-    Object.keys(component.components).forEach(function (c) {
-      var cmp = component.components[c];
-      if (!cmp.render) {
-        compileTemplate(cmp);
-      }
-    });
-  }
-  if (component.extends) {
-    compileTemplate(component.extends);
-  }
-  if (component.template) {
-    Object.assign(component, vueTemplateCompiler.compileToFunctions(component.template));
-  }
-}
-
-// 
-
-function isVueComponent$1 (comp) {
-  return comp && (comp.render || comp.template || comp.options)
-}
-
-function isValidStub (stub) {
-  return !!stub &&
-      typeof stub === 'string' ||
-      (stub === true) ||
-      (isVueComponent$1(stub))
-}
-
-function isRequiredComponent (name) {
-  return name === 'KeepAlive' || name === 'Transition' || name === 'TransitionGroup'
-}
-
-function getCoreProperties (component) {
-  return {
-    attrs: component.attrs,
-    name: component.name,
-    on: component.on,
-    key: component.key,
-    ref: component.ref,
-    props: component.props,
-    domProps: component.domProps,
-    class: component.class,
-    staticClass: component.staticClass,
-    staticStyle: component.staticStyle,
-    style: component.style,
-    normalizedStyle: component.normalizedStyle,
-    nativeOn: component.nativeOn,
-    functional: component.functional
-  }
-}
-function createStubFromString (templateString, originalComponent) {
-  if (!vueTemplateCompiler.compileToFunctions) {
-    throwError('vueTemplateCompiler is undefined, you must pass components explicitly if vue-template-compiler is undefined');
-  }
-  return Object.assign({}, getCoreProperties(originalComponent),
-    vueTemplateCompiler.compileToFunctions(templateString))
-}
-
-function createBlankStub (originalComponent) {
-  return Object.assign({}, getCoreProperties(originalComponent),
-    {render: function (h) { return h(''); }})
-}
-
-function createComponentStubs (originalComponents, stubs) {
-  if ( originalComponents === void 0 ) originalComponents = {};
-
-  var components = {};
-  if (!stubs) {
-    return components
-  }
-  if (Array.isArray(stubs)) {
-    stubs.forEach(function (stub) {
-      if (stub === false) {
-        return
-      }
-
-      if (typeof stub !== 'string') {
-        throwError('each item in an options.stubs array must be a string');
-      }
-      components[stub] = createBlankStub({});
-    });
-  } else {
-    Object.keys(stubs).forEach(function (stub) {
-      if (stubs[stub] === false) {
-        return
-      }
-      if (!isValidStub(stubs[stub])) {
-        throwError('options.stub values must be passed a string or component');
-      }
-      if (stubs[stub] === true) {
-        components[stub] = createBlankStub({});
-        return
-      }
-
-      if (componentNeedsCompiling(stubs[stub])) {
-        compileTemplate(stubs[stub]);
-      }
-
-      if (originalComponents[stub]) {
-        // Remove cached constructor
-        delete originalComponents[stub]._Ctor;
-        if (typeof stubs[stub] === 'string') {
-          components[stub] = createStubFromString(stubs[stub], originalComponents[stub]);
-        } else {
-          components[stub] = Object.assign({}, stubs[stub],
-            {name: originalComponents[stub].name});
-        }
-      } else {
-        if (typeof stubs[stub] === 'string') {
-          if (!vueTemplateCompiler.compileToFunctions) {
-            throwError('vueTemplateCompiler is undefined, you must pass components explicitly if vue-template-compiler is undefined');
-          }
-          components[stub] = Object.assign({}, vueTemplateCompiler.compileToFunctions(stubs[stub]));
-        } else {
-          components[stub] = Object.assign({}, stubs[stub]);
-        }
-      }
-      // ignoreElements does not exist in Vue 2.0.x
-      if (Vue.config.ignoredElements) {
-        Vue.config.ignoredElements.push(stub);
-      }
-    });
-  }
-  return components
-}
-
-function stubComponents (components, stubbedComponents) {
-  Object.keys(components).forEach(function (component) {
-    // Remove cached constructor
-    delete components[component]._Ctor;
-    if (!components[component].name) {
-      components[component].name = component;
-    }
-    stubbedComponents[component] = createBlankStub(components[component]);
-
-    // ignoreElements does not exist in Vue 2.0.x
-    if (Vue.config.ignoredElements) {
-      Vue.config.ignoredElements.push(component);
-    }
-  });
-}
-
-function createComponentStubsForAll (component) {
-  var stubbedComponents = {};
-
-  if (component.components) {
-    stubComponents(component.components, stubbedComponents);
-  }
-
-  var extended = component.extends;
-
-  // Loop through extended component chains to stub all child components
-  while (extended) {
-    if (extended.components) {
-      stubComponents(extended.components, stubbedComponents);
-    }
-    extended = extended.extends;
-  }
-
-  if (component.extendOptions && component.extendOptions.components) {
-    stubComponents(component.extendOptions.components, stubbedComponents);
-  }
-
-  return stubbedComponents
-}
-
-function createComponentStubsForGlobals (instance) {
-  var components = {};
-  Object.keys(instance.options.components).forEach(function (c) {
-    if (isRequiredComponent(c)) {
-      return
-    }
-
-    components[c] = createBlankStub(instance.options.components[c]);
-    delete instance.options.components[c]._Ctor; // eslint-disable-line no-param-reassign
-    delete components[c]._Ctor; // eslint-disable-line no-param-reassign
-  });
-  return components
-}
-
-// 
-
-function compileTemplate$1 (component) {
-  if (component.components) {
-    Object.keys(component.components).forEach(function (c) {
-      var cmp = component.components[c];
-      if (!cmp.render) {
-        compileTemplate$1(cmp);
-      }
-    });
-  }
-  if (component.extends) {
-    compileTemplate$1(component.extends);
-  }
-  if (component.template) {
-    Object.assign(component, vueTemplateCompiler.compileToFunctions(component.template));
-  }
-}
-
-function deleteMountingOptions (options) {
-  delete options.attachToDocument;
-  delete options.mocks;
-  delete options.slots;
-  delete options.localVue;
-  delete options.stubs;
-  delete options.context;
-  delete options.clone;
-  delete options.attrs;
-  delete options.listeners;
-}
-
-// 
-
-function isValidSlot$1 (slot) {
-  return Array.isArray(slot) || (slot !== null && typeof slot === 'object') || typeof slot === 'string'
-}
-
-function createFunctionalSlots (slots, h) {
-  if ( slots === void 0 ) slots = {};
-
-  if (Array.isArray(slots.default)) {
-    return slots.default.map(h)
-  }
-
-  if (typeof slots.default === 'string') {
-    return [h(vueTemplateCompiler.compileToFunctions(slots.default))]
-  }
-  var children = [];
-  Object.keys(slots).forEach(function (slotType) {
-    if (Array.isArray(slots[slotType])) {
-      slots[slotType].forEach(function (slot) {
-        if (!isValidSlot$1(slot)) {
-          throwError('slots[key] must be a Component, string or an array of Components');
-        }
-        var component = typeof slot === 'string' ? vueTemplateCompiler.compileToFunctions(slot) : slot;
-        var newSlot = h(component);
-        newSlot.data.slot = slotType;
-        children.push(newSlot);
-      });
-    } else {
-      if (!isValidSlot$1(slots[slotType])) {
-        throwError('slots[key] must be a Component, string or an array of Components');
-      }
-      var component = typeof slots[slotType] === 'string' ? vueTemplateCompiler.compileToFunctions(slots[slotType]) : slots[slotType];
-      var slot = h(component);
-      slot.data.slot = slotType;
-      children.push(slot);
-    }
-  });
-  return children
-}
-
-function createFunctionalComponent (component, mountingOptions) {
-  if (mountingOptions.context && typeof mountingOptions.context !== 'object') {
-    throwError('mount.context must be an object');
-  }
-
-  return {
-    render: function render (h) {
-      return h(
-        component,
-        mountingOptions.context || component.FunctionalRenderContext,
-        (mountingOptions.context && mountingOptions.context.children && mountingOptions.context.children.map(function (x) { return typeof x === 'function' ? x(h) : x; })) || createFunctionalSlots(mountingOptions.slots, h)
-      )
-    },
-    name: component.name,
-    _isFunctionalContainer: true
+    return elem
   }
 }
 
@@ -3070,10 +2603,13 @@ var reIsUint = /^(?:0|[1-9]\d*)$/;
  * @returns {boolean} Returns `true` if `value` is a valid index, else `false`.
  */
 function isIndex(value, length) {
+  var type = typeof value;
   length = length == null ? MAX_SAFE_INTEGER : length;
+
   return !!length &&
-    (typeof value == 'number' || reIsUint.test(value)) &&
-    (value > -1 && value % 1 == 0 && value < length);
+    (type == 'number' ||
+      (type != 'symbol' && reIsUint.test(value))) &&
+        (value > -1 && value % 1 == 0 && value < length);
 }
 
 var _isIndex = isIndex;
@@ -3860,7 +3396,7 @@ var hasOwnProperty$9 = objectProto$12.hasOwnProperty;
  */
 function initCloneArray(array) {
   var length = array.length,
-      result = array.constructor(length);
+      result = new array.constructor(length);
 
   // Add properties assigned by `RegExp#exec`.
   if (length && typeof array[0] == 'string' && hasOwnProperty$9.call(array, 'index')) {
@@ -3907,87 +3443,6 @@ function cloneDataView(dataView, isDeep) {
 
 var _cloneDataView = cloneDataView;
 
-/**
- * Adds the key-value `pair` to `map`.
- *
- * @private
- * @param {Object} map The map to modify.
- * @param {Array} pair The key-value pair to add.
- * @returns {Object} Returns `map`.
- */
-function addMapEntry(map, pair) {
-  // Don't return `map.set` because it's not chainable in IE 11.
-  map.set(pair[0], pair[1]);
-  return map;
-}
-
-var _addMapEntry = addMapEntry;
-
-/**
- * A specialized version of `_.reduce` for arrays without support for
- * iteratee shorthands.
- *
- * @private
- * @param {Array} [array] The array to iterate over.
- * @param {Function} iteratee The function invoked per iteration.
- * @param {*} [accumulator] The initial value.
- * @param {boolean} [initAccum] Specify using the first element of `array` as
- *  the initial value.
- * @returns {*} Returns the accumulated value.
- */
-function arrayReduce(array, iteratee, accumulator, initAccum) {
-  var index = -1,
-      length = array == null ? 0 : array.length;
-
-  if (initAccum && length) {
-    accumulator = array[++index];
-  }
-  while (++index < length) {
-    accumulator = iteratee(accumulator, array[index], index, array);
-  }
-  return accumulator;
-}
-
-var _arrayReduce = arrayReduce;
-
-/**
- * Converts `map` to its key-value pairs.
- *
- * @private
- * @param {Object} map The map to convert.
- * @returns {Array} Returns the key-value pairs.
- */
-function mapToArray(map) {
-  var index = -1,
-      result = Array(map.size);
-
-  map.forEach(function(value, key) {
-    result[++index] = [key, value];
-  });
-  return result;
-}
-
-var _mapToArray = mapToArray;
-
-/** Used to compose bitmasks for cloning. */
-var CLONE_DEEP_FLAG = 1;
-
-/**
- * Creates a clone of `map`.
- *
- * @private
- * @param {Object} map The map to clone.
- * @param {Function} cloneFunc The function to clone values.
- * @param {boolean} [isDeep] Specify a deep clone.
- * @returns {Object} Returns the cloned map.
- */
-function cloneMap(map, isDeep, cloneFunc) {
-  var array = isDeep ? cloneFunc(_mapToArray(map), CLONE_DEEP_FLAG) : _mapToArray(map);
-  return _arrayReduce(array, _addMapEntry, new map.constructor);
-}
-
-var _cloneMap = cloneMap;
-
 /** Used to match `RegExp` flags from their coerced string values. */
 var reFlags = /\w*$/;
 
@@ -4005,60 +3460,6 @@ function cloneRegExp(regexp) {
 }
 
 var _cloneRegExp = cloneRegExp;
-
-/**
- * Adds `value` to `set`.
- *
- * @private
- * @param {Object} set The set to modify.
- * @param {*} value The value to add.
- * @returns {Object} Returns `set`.
- */
-function addSetEntry(set, value) {
-  // Don't return `set.add` because it's not chainable in IE 11.
-  set.add(value);
-  return set;
-}
-
-var _addSetEntry = addSetEntry;
-
-/**
- * Converts `set` to an array of its values.
- *
- * @private
- * @param {Object} set The set to convert.
- * @returns {Array} Returns the values.
- */
-function setToArray(set) {
-  var index = -1,
-      result = Array(set.size);
-
-  set.forEach(function(value) {
-    result[++index] = value;
-  });
-  return result;
-}
-
-var _setToArray = setToArray;
-
-/** Used to compose bitmasks for cloning. */
-var CLONE_DEEP_FLAG$1 = 1;
-
-/**
- * Creates a clone of `set`.
- *
- * @private
- * @param {Object} set The set to clone.
- * @param {Function} cloneFunc The function to clone values.
- * @param {boolean} [isDeep] Specify a deep clone.
- * @returns {Object} Returns the cloned set.
- */
-function cloneSet(set, isDeep, cloneFunc) {
-  var array = isDeep ? cloneFunc(_setToArray(set), CLONE_DEEP_FLAG$1) : _setToArray(set);
-  return _arrayReduce(array, _addSetEntry, new set.constructor);
-}
-
-var _cloneSet = cloneSet;
 
 /** Used to convert symbols to primitives and strings. */
 var symbolProto = _Symbol ? _Symbol.prototype : undefined,
@@ -4118,16 +3519,15 @@ var arrayBufferTag$1 = '[object ArrayBuffer]',
  * Initializes an object clone based on its `toStringTag`.
  *
  * **Note:** This function only supports cloning values with tags of
- * `Boolean`, `Date`, `Error`, `Number`, `RegExp`, or `String`.
+ * `Boolean`, `Date`, `Error`, `Map`, `Number`, `RegExp`, `Set`, or `String`.
  *
  * @private
  * @param {Object} object The object to clone.
  * @param {string} tag The `toStringTag` of the object to clone.
- * @param {Function} cloneFunc The function to clone values.
  * @param {boolean} [isDeep] Specify a deep clone.
  * @returns {Object} Returns the initialized clone.
  */
-function initCloneByTag(object, tag, cloneFunc, isDeep) {
+function initCloneByTag(object, tag, isDeep) {
   var Ctor = object.constructor;
   switch (tag) {
     case arrayBufferTag$1:
@@ -4146,7 +3546,7 @@ function initCloneByTag(object, tag, cloneFunc, isDeep) {
       return _cloneTypedArray(object, isDeep);
 
     case mapTag$2:
-      return _cloneMap(object, isDeep, cloneFunc);
+      return new Ctor;
 
     case numberTag$1:
     case stringTag$1:
@@ -4156,7 +3556,7 @@ function initCloneByTag(object, tag, cloneFunc, isDeep) {
       return _cloneRegExp(object);
 
     case setTag$2:
-      return _cloneSet(object, isDeep, cloneFunc);
+      return new Ctor;
 
     case symbolTag:
       return _cloneSymbol(object);
@@ -4209,8 +3609,88 @@ function initCloneObject(object) {
 
 var _initCloneObject = initCloneObject;
 
+/** `Object#toString` result references. */
+var mapTag$3 = '[object Map]';
+
+/**
+ * The base implementation of `_.isMap` without Node.js optimizations.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a map, else `false`.
+ */
+function baseIsMap(value) {
+  return isObjectLike_1(value) && _getTag(value) == mapTag$3;
+}
+
+var _baseIsMap = baseIsMap;
+
+/* Node.js helper references. */
+var nodeIsMap = _nodeUtil && _nodeUtil.isMap;
+
+/**
+ * Checks if `value` is classified as a `Map` object.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.3.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a map, else `false`.
+ * @example
+ *
+ * _.isMap(new Map);
+ * // => true
+ *
+ * _.isMap(new WeakMap);
+ * // => false
+ */
+var isMap = nodeIsMap ? _baseUnary(nodeIsMap) : _baseIsMap;
+
+var isMap_1 = isMap;
+
+/** `Object#toString` result references. */
+var setTag$3 = '[object Set]';
+
+/**
+ * The base implementation of `_.isSet` without Node.js optimizations.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a set, else `false`.
+ */
+function baseIsSet(value) {
+  return isObjectLike_1(value) && _getTag(value) == setTag$3;
+}
+
+var _baseIsSet = baseIsSet;
+
+/* Node.js helper references. */
+var nodeIsSet = _nodeUtil && _nodeUtil.isSet;
+
+/**
+ * Checks if `value` is classified as a `Set` object.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.3.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a set, else `false`.
+ * @example
+ *
+ * _.isSet(new Set);
+ * // => true
+ *
+ * _.isSet(new WeakSet);
+ * // => false
+ */
+var isSet = nodeIsSet ? _baseUnary(nodeIsSet) : _baseIsSet;
+
+var isSet_1 = isSet;
+
 /** Used to compose bitmasks for cloning. */
-var CLONE_DEEP_FLAG$2 = 1,
+var CLONE_DEEP_FLAG = 1,
     CLONE_FLAT_FLAG = 2,
     CLONE_SYMBOLS_FLAG = 4;
 
@@ -4222,11 +3702,11 @@ var argsTag$2 = '[object Arguments]',
     errorTag$1 = '[object Error]',
     funcTag$2 = '[object Function]',
     genTag$1 = '[object GeneratorFunction]',
-    mapTag$3 = '[object Map]',
+    mapTag$4 = '[object Map]',
     numberTag$2 = '[object Number]',
     objectTag$2 = '[object Object]',
     regexpTag$2 = '[object RegExp]',
-    setTag$3 = '[object Set]',
+    setTag$4 = '[object Set]',
     stringTag$2 = '[object String]',
     symbolTag$1 = '[object Symbol]',
     weakMapTag$2 = '[object WeakMap]';
@@ -4250,9 +3730,9 @@ cloneableTags[arrayBufferTag$2] = cloneableTags[dataViewTag$3] =
 cloneableTags[boolTag$2] = cloneableTags[dateTag$2] =
 cloneableTags[float32Tag$2] = cloneableTags[float64Tag$2] =
 cloneableTags[int8Tag$2] = cloneableTags[int16Tag$2] =
-cloneableTags[int32Tag$2] = cloneableTags[mapTag$3] =
+cloneableTags[int32Tag$2] = cloneableTags[mapTag$4] =
 cloneableTags[numberTag$2] = cloneableTags[objectTag$2] =
-cloneableTags[regexpTag$2] = cloneableTags[setTag$3] =
+cloneableTags[regexpTag$2] = cloneableTags[setTag$4] =
 cloneableTags[stringTag$2] = cloneableTags[symbolTag$1] =
 cloneableTags[uint8Tag$2] = cloneableTags[uint8ClampedTag$2] =
 cloneableTags[uint16Tag$2] = cloneableTags[uint32Tag$2] = true;
@@ -4277,7 +3757,7 @@ cloneableTags[weakMapTag$2] = false;
  */
 function baseClone(value, bitmask, customizer, key, object, stack) {
   var result,
-      isDeep = bitmask & CLONE_DEEP_FLAG$2,
+      isDeep = bitmask & CLONE_DEEP_FLAG,
       isFlat = bitmask & CLONE_FLAT_FLAG,
       isFull = bitmask & CLONE_SYMBOLS_FLAG;
 
@@ -4314,7 +3794,7 @@ function baseClone(value, bitmask, customizer, key, object, stack) {
       if (!cloneableTags[tag]) {
         return object ? value : {};
       }
-      result = _initCloneByTag(value, tag, baseClone, isDeep);
+      result = _initCloneByTag(value, tag, isDeep);
     }
   }
   // Check for circular references and return its corresponding clone.
@@ -4324,6 +3804,22 @@ function baseClone(value, bitmask, customizer, key, object, stack) {
     return stacked;
   }
   stack.set(value, result);
+
+  if (isSet_1(value)) {
+    value.forEach(function(subValue) {
+      result.add(baseClone(subValue, bitmask, customizer, subValue, value, stack));
+    });
+
+    return result;
+  }
+
+  if (isMap_1(value)) {
+    value.forEach(function(subValue, key) {
+      result.set(key, baseClone(subValue, bitmask, customizer, key, value, stack));
+    });
+
+    return result;
+  }
 
   var keysFunc = isFull
     ? (isFlat ? _getAllKeysIn : _getAllKeys)
@@ -4344,7 +3840,7 @@ function baseClone(value, bitmask, customizer, key, object, stack) {
 var _baseClone = baseClone;
 
 /** Used to compose bitmasks for cloning. */
-var CLONE_DEEP_FLAG$3 = 1,
+var CLONE_DEEP_FLAG$1 = 1,
     CLONE_SYMBOLS_FLAG$1 = 4;
 
 /**
@@ -4366,77 +3862,10 @@ var CLONE_DEEP_FLAG$3 = 1,
  * // => false
  */
 function cloneDeep(value) {
-  return _baseClone(value, CLONE_DEEP_FLAG$3 | CLONE_SYMBOLS_FLAG$1);
+  return _baseClone(value, CLONE_DEEP_FLAG$1 | CLONE_SYMBOLS_FLAG$1);
 }
 
 var cloneDeep_1 = cloneDeep;
-
-// 
-
-function createInstance (
-  component,
-  options,
-  vue
-) {
-  if (options.mocks) {
-    addMocks(options.mocks, vue);
-  }
-
-  if ((component.options && component.options.functional) || component.functional) {
-    component = createFunctionalComponent(component, options);
-  } else if (options.context) {
-    throwError(
-      'mount.context can only be used when mounting a functional component'
-    );
-  }
-
-  if (options.provide) {
-    addProvide(component, options.provide, options);
-  }
-
-  if (componentNeedsCompiling(component)) {
-    compileTemplate$1(component);
-  }
-
-  addEventLogger(vue);
-
-  var Constructor = vue.extend(component);
-
-  var instanceOptions = Object.assign({}, options);
-  deleteMountingOptions(instanceOptions);
-  if (options.stubs) {
-    instanceOptions.components = Object.assign({}, instanceOptions.components,
-      // $FlowIgnore
-      createComponentStubs(component.components, options.stubs));
-  }
-
-  var vm = new Constructor(instanceOptions);
-
-  addAttrs(vm, options.attrs);
-  addListeners(vm, options.listeners);
-
-  vm.$_mountingOptionsSlots = options.slots;
-  vm.$_originalSlots = cloneDeep_1(vm.$slots);
-
-  if (options.slots) {
-    addSlots(vm, options.slots);
-  }
-
-  return vm
-}
-
-// 
-
-function createElement () {
-  if (document) {
-    var elem = document.createElement('div');
-
-    if (document.body) {
-      document.body.appendChild(elem);
-    }
-    return elem
-  }
-}
 
 function errorHandler (errorOrString, vm) {
   var error = (typeof errorOrString === 'object')
@@ -4495,28 +3924,6 @@ function createLocalVue () {
     use.call.apply(use, [ instance, plugin ].concat( rest ));
   };
   return instance
-}
-
-// 
-
-function getStubs (optionStubs, config) {
-  if (optionStubs ||
-    (config.stubs && Object.keys(config.stubs).length > 0)) {
-    if (Array.isArray(optionStubs)) {
-      return optionStubs.concat( Object.keys(config.stubs || {}))
-    } else {
-      return Object.assign({}, config.stubs,
-        optionStubs)
-    }
-  }
-}
-
-function mergeOptions (
-  options,
-  config
-) {
-  return Object.assign({}, options,
-    {stubs: getStubs(options.stubs, config)})
 }
 
 // 
@@ -4583,7 +3990,7 @@ var TransitionStub = {
 
     // warn multiple elements
     if (children.length > 1) {
-      warn(
+      util.warn(
         '<transition> can only be used on a single element. Use ' +
          '<transition-group> for lists.'
       );
@@ -4594,7 +4001,7 @@ var TransitionStub = {
     // warn invalid mode
     if (mode && mode !== 'in-out' && mode !== 'out-in'
     ) {
-      warn(
+      util.warn(
         'invalid <transition> mode: ' + mode
       );
     }
@@ -4680,7 +4087,7 @@ function mount (component, options) {
   // Remove cached constructor
   delete component._Ctor;
   var vueClass = options.localVue || createLocalVue();
-  var vm = createInstance(component, mergeOptions(options, config), vueClass);
+  var vm = createInstance(component, mergeOptions.mergeOptions(options, config), vueClass);
 
   if (options.attachToDocument) {
     vm.$mount(createElement());
@@ -4715,12 +4122,12 @@ function shallow (
   // remove any recursive components added to the constructor
   // in vm._init from previous tests
   if (component.name && component.components) {
-    delete component.components[capitalize(camelize(component.name))];
-    delete component.components[hyphenate(component.name)];
+    delete component.components[util.capitalize(util.camelize(component.name))];
+    delete component.components[util.hyphenate(component.name)];
   }
 
-  var stubbedComponents = createComponentStubsForAll(component);
-  var stubbedGlobalComponents = createComponentStubsForGlobals(vue);
+  var stubbedComponents = stubComponents.createComponentStubsForAll(component);
+  var stubbedGlobalComponents = stubComponents.createComponentStubsForGlobals(vue);
 
   return mount(component, Object.assign({}, options,
     {components: Object.assign({}, stubbedGlobalComponents,

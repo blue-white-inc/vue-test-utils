@@ -38,6 +38,16 @@ const rollupOptionsBuild = [
       'vue-template-compiler': 'VueTemplateCompiler'
     },
     moduleName: 'vueTestUtils'
+  },
+  {
+    file: 'dist/vue-test-utils.esm.js',
+    format: 'es',
+    name: 'VueTestUtils',
+    globals: {
+      'vue': 'Vue',
+      'vue-template-compiler': 'VueTemplateCompiler'
+    },
+    moduleName: 'vueTestUtils'
   }
 ]
 
